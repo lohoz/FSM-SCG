@@ -1,2 +1,2 @@
 # FSM-SCG
-FSM-SCG: Smart Contract Generation with Large Language Models Guided by Finite State Machine
+FSM-SCG: Guiding Large Language Models with Finite State Machine for Smart Contract Generation
