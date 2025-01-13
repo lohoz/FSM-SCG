@@ -87,7 +87,7 @@ Correctness: 8.5
         return prompt
 
 
-    # 生成用于测试不使用FSM进行智能合约生成的prompt
+    # Generate prompts for testing smart contract generation without using FSM
     @staticmethod
     def generate_code_no_fsm_prompt(user_requirement: str, version: str) -> str:
         prompt = \
@@ -100,7 +100,7 @@ Correctness: 8.5
     
 
 
-    # 生成用于测试使用FSM进行智能合约生成的prompt
+    # Generate prompts for testing smart contract generation using FSM
     @staticmethod
     def generate_code_with_fsm_prompt(user_requirement: str, version: str) -> str:
         prompt_1 = \
@@ -120,7 +120,7 @@ based on the finite state machine generated above, **please note that there shou
         return prompt_1, prompt_2
     
 
-    # 生成用于测试使用FSM进行智能合约生成的prompt
+    # Generate prompts for testing smart contract generation using FSM
     @staticmethod
     def generate_code_with_fsm_no_example_prompt(user_requirement: str, version: str) -> str:
         prompt_1 = \

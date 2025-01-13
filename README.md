@@ -2,7 +2,7 @@
 FSM-SCG: Guiding Large Language Models with Finite State Machine for Smart Contract Generation
 
 ## Framework
-![FSM-SCG Framework](figure/framework.png)
+![FSM-SCG Framework](figure/architecture.svg)
 
 
 ## Datasets
