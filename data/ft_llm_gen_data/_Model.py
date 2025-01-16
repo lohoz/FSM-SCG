@@ -23,22 +23,15 @@ class _Model(Model):
 
         # FSM validation and feedback loop
         fsm = data_utils.extract_fsm(response_1)
-        response_1 = self._validate_and_regenerate_fsm(fsm, feedback_count, conversation)
-    
-        # Check FSM reachability and cycle properties
-        fsm = data_utils.extract_fsm(response_1)
-        response_1 = self._check_reachability_and_cycles(fsm, feedback_count, conversation)
+        response_1 = self.check_fsm_format_and_graph(fsm, feedback_count, conversation)
 
         # Generate smart contract code
         response_2, conversation = self.multiple_dialogue(prompt_2, conversation, random_parameters=True)
 
-        # Smart contract code compilation and feedback loop
+        # Smart contract code compilation and security check loop
         code = data_utils.extract_code(response_2)
         code = code.replace('@openzeppelin', openzeppelin_path)
-        response_2 = self._compile_and_validate_code(code, feedback_count, conversation, openzeppelin_path)
-
-        # Security check and feedback loop
-        response_2 = self._check_security_risks(response_2, feedback_count, conversation, openzeppelin_path)
+        response_2 = self.check_compilation_and_security(code, feedback_count, conversation, openzeppelin_path)
 
 
         data = {}
@@ -49,28 +42,16 @@ class _Model(Model):
         data_utils.append_jsonl(output_path, data)
 
 
-
-    def _validate_and_regenerate_fsm(self, fsm, feedback_count, conversation):
-        fb_count = feedback_count
+    def check_fsm_format_and_graph(self, fsm, feedback_count, conversation):
+        fb_count = feedback_count * 2
         while True:
             is_valid, message = fsm_utils.validate_fsm(fsm)
-            if is_valid or fb_count <= 0:
-                break
-            prompt = f'The generated FSM has the following issues, please regenerate the FSM:\n{message}'
-            response, conversation = self.multiple_dialogue(prompt, conversation, random_parameters=True)
-            fsm = data_utils.extract_fsm(response)
-            fb_count -= 1
-        return response
-
-
-
-    def _check_reachability_and_cycles(self, fsm, feedback_count, conversation):
-        fb_count = feedback_count
-        while True:
             unreachable_states, has_cycle = fsm_utils.check_reachability_and_cycles(fsm)
-            if (not unreachable_states and has_cycle) or fb_count <= 0:
+            if (is_valid and not unreachable_states and has_cycle) or fb_count <= 0:
                 break
             prompt = 'The generated FSM has the following issues, please regenerate the FSM:'
+            if not is_valid:
+                prompt += f'\n### {message}'
             if unreachable_states:
                 prompt += f'\n### List of unreachable states: {unreachable_states}'
             if not has_cycle:
@@ -79,37 +60,29 @@ class _Model(Model):
             fsm = data_utils.extract_fsm(response)
             fb_count -= 1
         return response
-    
 
 
-    def _compile_and_validate_code(self, code, feedback_count, conversation, openzeppelin_path):
-        fb_count = feedback_count
-        while True:
+    def check_compilation_and_security(self, code, feedback_count, conversation, openzeppelin_path):
+        fb_count_1, fb_count_2 = feedback_count, feedback_count
+        success_flag = False
+        while not success_flag:
             compile_result, compile_info = solidity_utils.compile_solidity(code)
-            if compile_result or fb_count <= 0:
-                break
-            compile_error_prompt = prompt_utils.feedback_by_compile_error_prompt(
-                solidity_utils.extract_solcx_compile_error(str(compile_info))
-            )
-            response, conversation = self.multiple_dialogue(compile_error_prompt, conversation, random_parameters=True)
-            code = data_utils.extract_code(response)
-            code = code.replace('@openzeppelin', openzeppelin_path)
-            fb_count -= 1
-        return response
-
-
-
-    def _check_security_risks(self, response, feedback_count, conversation, openzeppelin_path):
-        fb_count = feedback_count
-        while True:
-            code = data_utils.extract_code(response)
-            code = code.replace('@openzeppelin', openzeppelin_path)
-            check_info = slither_check.check_one_by_slither(code)
-            if isinstance(check_info, str) or len(check_info) == 0 or fb_count <= 0:
-                break
-            security_risk_prompt = prompt_utils.feedback_by_security_risk_prompt(check_info)
-            response, conversation = self.multiple_dialogue(security_risk_prompt, conversation, random_parameters=True)
-            fb_count -= 1
+            if not compile_result and fb_count_1 > 0:
+                compile_error_prompt = prompt_utils.feedback_by_compile_error_prompt(
+                    solidity_utils.extract_solcx_compile_error(str(compile_info))
+                )
+                response, conversation = self.multiple_dialogue(compile_error_prompt, conversation, random_parameters=True)
+                code = data_utils.extract_code(response)
+                code = code.replace('@openzeppelin', openzeppelin_path)
+                fb_count_1 -= 1
+            else:
+                check_info = slither_check.check_one_by_slither(code)
+                if not (isinstance(check_info, str) and len(check_info) == 0) and fb_count_2 > 0:
+                    security_risk_prompt = prompt_utils.feedback_by_security_risk_prompt(check_info)
+                    response, conversation = self.multiple_dialogue(security_risk_prompt, conversation, random_parameters=True)
+                    fb_count_2 -= 1
+                else:
+                    success_flag = True
         return response
 
 
